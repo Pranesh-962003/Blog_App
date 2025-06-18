@@ -1,22 +1,21 @@
-# Use the .NET SDK image for build
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-# Copy csproj and restore
-COPY Backend/*.csproj ./Backend/
-RUN dotnet restore ./Backend/Backend.csproj
+# Copy and restore
+COPY *.csproj ./
+RUN dotnet restore
 
-# Copy the rest of the source code
+# Copy the rest of the backend source code
 COPY . .
 
-# Publish
-RUN dotnet publish ./Backend/Backend.csproj -c Release -o out
+# Publish the app
+RUN dotnet publish -c Release -o /app/publish
 
-# Final runtime image
+# Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/out .
+COPY --from=build /app/publish .
 
-# Use port 80
 EXPOSE 80
 ENTRYPOINT ["dotnet", "Backend.dll"]
