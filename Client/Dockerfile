@@ -1,4 +1,4 @@
- Use the official .NET SDK image for building
+# Use the official .NET SDK image for building
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 # Set working directory
@@ -20,5 +20,5 @@ COPY --from=build /app/out .
 # Expose default port
 EXPOSE 8080
 
-# Start the application
-ENTRYPOINT ["dotnet", "Client.dll"]
+# Start the application (Update this line to match your .csproj name)
+ENTRYPOINT ["dotnet", "BlogApp.Client.dll"]
