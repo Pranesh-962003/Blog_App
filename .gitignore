@@ -1,12 +1,17 @@
-# Binaries
-bin/
-obj/
-
-
-# VS/IDE
+# Ignore Visual Studio files
 .vs/
 *.user
 *.suo
 
-# Publish
-publish/
+# Ignore build output
+bin/
+obj/
+
+# Ignore logs
+*.log
+
+# Ignore local settings
+appsettings.Development.json
+
+# Ignore launch profile (optional for production)
+Properties/launchSettings.json
