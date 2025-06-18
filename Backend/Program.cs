@@ -14,6 +14,8 @@ builder.Services.AddScoped<MongoService>();
 builder.Services.AddSingleton<IUserIdProvider, QueryStringUserIdProvider>();
 builder.Services.AddHttpClient<EmbeddingService>();
 builder.Services.AddScoped<SearchService>();
+var huggingFaceToken = builder.Configuration["HuggingFace:ApiKey"];
+
 
 
 

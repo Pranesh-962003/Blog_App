@@ -99,10 +99,11 @@
     private string message = "";
     private bool generate = false;
 
-    private async Task OnInputFileChanged(InputFileChangeEventArgs e)
+    private void OnInputFileChanged(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
     }
+
 
     private async Task SubmitArticle()
     {

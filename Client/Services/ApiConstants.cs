@@ -2,6 +2,6 @@
 {
     public class ApiConstants
     {
-        public const string BaseUrl = "https://localhost:7247";
+        public const string BaseUrl = "https://blog-app-7-meag.onrender.com";
     }
 }
