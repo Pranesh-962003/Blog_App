@@ -1,4 +1,14 @@
+<<<<<<< HEAD
 # Ignore Visual Studio files
+=======
+# Binaries
+bin/
+obj/
+
+
+
+# VS/IDE
+>>>>>>> cd7515e (Update .gitignore and add local appsettings files)
 .vs/
 *.user
 *.suo
