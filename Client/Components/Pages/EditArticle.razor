@@ -1,0 +1,60 @@
+﻿@page "/edit-article/{id}"
+@using Client.Models
+@rendermode InteractiveServer
+@using Client.Services
+@inject HttpClient _http
+@inject NavigationManager NavigationManager
+
+<MudLayout>
+   
+        <Navbar/>
+    
+    <MudMainContent>
+        <MudPaper Class="p-6 m-auto mt-12" MaxWidth="700px" Style="background-color:#f9f9f9;">
+    <MudText Typo="Typo.h5" Class="mb-4">Edit Article</MudText>
+
+    @if (article == null)
+    {
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" />
+    }
+    else
+    {
+        <MudTextField @bind-Value="article.Heading" Label="Title" Variant="Variant.Filled" Class="mb-3" />
+        <MudTextField @bind-Value="article.ArticleBody" Label="Content" Variant="Variant.Filled" Lines="6" Class="mb-3" />
+
+        <MudButton OnClick="UpdateArticle" Color="Color.Primary" Variant="Variant.Filled">Update</MudButton>
+    }
+</MudPaper>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    [Parameter] public string? id { get; set; }
+    private ArticleModel? article;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(id))
+        {
+            article = await _http.GetFromJsonAsync<ArticleModel>($"{ApiConstants.BaseUrl}/api/article/get-by-id/{id}");
+        }
+    }
+
+    private async Task UpdateArticle()
+    {
+        if (article != null && !string.IsNullOrEmpty(id))
+        {
+            var response = await _http.PutAsJsonAsync($"{ApiConstants.BaseUrl}/api/article/update/{id}", article);
+
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/my-article");
+            }
+            else
+            {
+                // Optionally show error to the user
+                Console.WriteLine("Update failed.");
+            }
+        }
+    }
+}

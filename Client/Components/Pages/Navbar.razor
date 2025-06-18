@@ -1,0 +1,31 @@
+﻿@using MudBlazor
+
+
+<MudAppBar Style=" box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); padding: 0 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+       <img 
+           style="height:30px; width:30px"
+           src="/Images/Download premium vector of Green flowing abstract background vector by Aum about backgrounds, design background, background abstract, green backgrounds, and paper 636935_files//41699b19105291e0552a0dae19.jpg"/>
+        <div style="display:flex; gap:20px; align-items:center;">
+            <MudLink Href="/home" Class="pa-4 mud-theme-primary">Dashboard</MudLink>
+            <MudLink Href="/post-article" Class="pa-4 mud-theme-primary">Post Article</MudLink>
+            <MudLink Href="/my-article" Class="pa-4 mud-theme-primary">My Article</MudLink>
+            <MudLink Href="/notification" Class="pa-4 mud-theme-primary">Notification</MudLink>
+        
+                <MudLink Href="/profile">
+                <MudAvatar Icon="@Icons.Material.Filled.Person"
+                           Size="Size.Medium"
+                           Color="Color.Primary"
+                           Class="profile-avatar ">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Title="Favorite" />
+                       </MudAvatar>
+                </MudLink>
+
+        </div>
+    </div>
+</MudAppBar>
+
+
+@code {
+    
+}

@@ -1,0 +1,219 @@
+﻿@page "/post-article"
+@using System.Net.Http.Headers
+@using Client.Services
+@inject HttpClient Http
+@inject TokenServices token
+@inject ISnackbar Snackbar
+@inject IHttpClientFactory ClientFactory
+<MudSnackbarProvider/>
+@rendermode InteractiveServer
+
+<style>
+    .glass-container {
+        backdrop-filter: blur(12px);
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 3rem;
+        margin: auto;
+        width: 100%;
+        max-width: 700px;
+    }
+
+    body {
+        min-height: 100vh;
+        padding: 3rem;
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .glass-title {
+        font-weight: bold;
+        color:gray;
+    }
+
+    .field-label {
+        color: #e0e0e0;
+    }
+
+    input[type="file"] {
+        color: #fff;
+    }
+</style>
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+
+        <MudContainer MaxWidth="MaxWidth.False">
+            <div class="glass-container" >
+                <MudText Typo="Typo.h4" Class="glass-title mb-4">📝 Publish a New Article</MudText>
+
+                <MudTextField @bind-Value="heading" Label="Heading" Variant="Variant.Filled" Color="Color.Primary" Required="true" Class="mb-3" Style="width: 100%;" />
+
+                <MudTextField @bind-Value="articleBody" Label="Article Body"
+                              Variant="Variant.Filled" Color="Color.Primary" Required="true" Lines="8" TextArea="true" Class="mb-3" Style="width: 100%;" />
+
+                <MudText Typo="Typo.subtitle2" Class="field-label mb-1">Upload Image (optional)</MudText>
+                <InputFile OnChange="OnInputFileChanged" class="mb-3" />
+
+                <MudButton OnClick="SubmitArticle" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">
+                    🚀 Post Article
+                </MudButton>
+                <MudButton OnClick="Ongenerate" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">
+                    🚀 Create Content
+                </MudButton>
+
+                @if (!string.IsNullOrWhiteSpace(statusMessage))
+                {
+                    <MudText Typo="Typo.body2" Class="mt-3" Color="Color.Info">@statusMessage</MudText>
+                }
+            </div>
+            @if (generate)
+            {
+                <div class="mt-5">
+                    <MudTextField @bind-Value="generateheading" Label="Heading" Variant="Variant.Filled" Color="Color.Primary" Required="true" Class="mb-3" Style="width: 100%;" />
+                    <MudButton OnClick="GenerateContent" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">Generate</MudButton>
+                </div>
+                <MudText Color="Color.Primary" Style="width:100%">@message</MudText>
+
+                @if (!string.IsNullOrEmpty(result))
+                {
+                    <p><MudText Color="Color.Success" Style="width:100%">Content Generated</MudText></p>
+                    <MudPaper Class="p-3" Style="white-space: pre-wrap; color: black; background-color: #f9f9f9; border: 1px solid #ccc; user-select: text;">
+                        @result
+                    </MudPaper>
+                }
+            }
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private string heading = string.Empty;
+    private string articleBody = string.Empty;
+    private IBrowserFile? selectedFile;
+    private string statusMessage = "";
+    private string generateheading = "";
+    private string result = "";
+    private string message = "";
+    private bool generate = false;
+
+    private async Task OnInputFileChanged(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task SubmitArticle()
+    {
+        statusMessage = "";
+
+        if (string.IsNullOrWhiteSpace(heading) || string.IsNullOrWhiteSpace(articleBody))
+        {
+            Snackbar.Add("Heading and article body are required.", Severity.Warning);
+            return;
+        }
+
+        var email = token.accesstoken;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            Snackbar.Add("User not logged in.", Severity.Error);
+            return;
+        }
+
+        var content = new MultipartFormDataContent
+        {
+            { new StringContent(heading), "heading" },
+            { new StringContent(articleBody), "articleBody" },
+            { new StringContent(email), "email" }
+        };
+
+        if (selectedFile != null)
+        {
+            var stream = selectedFile.OpenReadStream(5 * 1024 * 1024); // 5MB limit
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(selectedFile.ContentType);
+            content.Add(fileContent, "image", selectedFile.Name);
+        }
+
+        var response = await Http.PostAsync($"{ApiConstants.BaseUrl}/api/article/add-article", content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("🎉 Article posted successfully!", Severity.Success);
+            heading = "";
+            articleBody = "";
+            selectedFile = null;
+            generate = false;
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Snackbar.Add($"❌ Failed to post: {error}", Severity.Error);
+        }
+    }
+
+    private async Task GenerateContent()
+    {
+        message = "🔄 Sending request...";
+        result = "";
+
+        var client = ClientFactory.CreateClient();
+
+        var body = new
+        {
+            contents = new[]
+          {
+        new
+        {
+          role = "user",
+          parts = new[]
+          {
+            new { text = $"Write a article 10 paragraph with bulletin points about: {generateheading}" }
+          }
+        }
+      }
+        };
+
+        var content = new StringContent(
+          System.Text.Json.JsonSerializer.Serialize(body),
+          System.Text.Encoding.UTF8,
+          "application/json"
+        );
+
+        try
+        {
+            var response = await client.PostAsync(
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBbJLLdFf-_AiNz7GtUNppeLKLETy1BZw0",
+              content
+            );
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                message = $"❌ Error: {response.StatusCode} - {json}";
+                return;
+            }
+
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            result = doc.RootElement
+              .GetProperty("candidates")[0]
+              .GetProperty("content")
+              .GetProperty("parts")[0]
+              .GetProperty("text")
+              .GetString() ?? "";
+
+            message = "✅ Content generated successfully!";
+        }
+        catch (Exception ex)
+        {
+            message = $"❌ Exception: {ex.Message}";
+        }
+    }
+
+    private void Ongenerate()
+    {
+        generate = true;
+    }
+}

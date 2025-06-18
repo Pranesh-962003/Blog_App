@@ -1,0 +1,183 @@
+﻿@page "/author/{id}"
+@using Client.Models
+@using Client.Services
+@inject HttpClient http
+@inject TokenServices token
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+
+        <div class="author-page-wrapper">
+
+
+            <div class="author-page-container">
+                <MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center">
+                    <!-- User Info -->
+                    <MudItem xs="12" md="5">
+                        <MudPaper Elevation="6" Class="user-info-card">
+                            <h2 class="section-title">@user?.Name</h2>
+                            <MudText Typo="Typo.body1"><b>Email:</b> @userEmail</MudText>
+                            <MudText Typo="Typo.body1"><b>Subscribers:</b> @user?.Subscribers?.Count ?? 0</MudText>
+                            <MudText Typo="Typo.body1"><b>Subscribed To:</b> @user?.SubscribedTo?.Count ?? 0</MudText>
+
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="subscribe-btn mt-4" OnClick="ToggleSubscription">
+                                @(IsSubscribed ? "Unsubscribe" : "Subscribe")
+                            </MudButton>
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- Article List -->
+                    <MudItem xs="12" md="5">
+                        <MudPaper Elevation="6" Class="article-list-card">
+                            <h3 class="section-title">Articles by @user?.Name</h3>
+
+                            @if (article == null)
+                            {
+                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Class="mx-auto my-6" />
+                            }
+                            else if (article.Count == 0)
+                            {
+                                <MudText>No articles found.</MudText>
+                            }
+                            else
+                            {
+                                <MudList T="ArticleModel" Dense="true">
+                                    @foreach (var art in article)
+                                    {
+                                        <MudListItem T="ArticleModel" Style="cursor:pointer" OnClick="@(() => NavigateToArticle(art.Id))">
+                                            <MudText Typo="Typo.subtitle1">@art.Heading</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@art.CreatedAt.ToShortDateString()</MudText>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </div>
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .author-page-wrapper {
+        min-height: 100vh;
+        color: #ffffff;
+    }
+
+    .header-bar {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        border-bottom: 1px solid #444;
+    }
+
+    .logo {
+        height: 40px;
+    }
+
+    .author-page-container {
+        max-width: 1200px;
+        margin: auto;
+        padding: 24px 12px;
+    }
+
+    .user-info-card, .article-list-card {
+        height: 100%;
+        padding: 24px;
+        background-color: #2a2a40;
+        color: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .subscribe-btn {
+        font-weight: bold;
+    }
+
+    .MudListItem {
+        background-color: #383854;
+        margin-bottom: 8px;
+        padding: 12px;
+        border-radius: 8px;
+        transition: background-color 0.3s;
+    }
+
+        .MudListItem:hover {
+            background-color: #505070;
+        }
+</style>
+
+
+@code {
+    [Parameter] public string? id { get; set; }
+
+    private string? userEmail;
+    private UserModel? user;
+    private List<ArticleModel>? article;
+    private bool IsSubscribed = false;
+    private string? currentUserEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(id)) return;
+
+        userEmail = await http.GetStringAsync($"{ApiConstants.BaseUrl}/api/user/get-email-by-id/{id}");
+        user = await http.GetFromJsonAsync<UserModel>($"{ApiConstants.BaseUrl}/api/user/get-user/{userEmail}");
+        article = await http.GetFromJsonAsync<List<ArticleModel>>($"{ApiConstants.BaseUrl}/api/user/get_article_author/{userEmail}");
+
+        currentUserEmail = token.accesstoken;
+
+        var checkResponse = await http.GetAsync($"{ApiConstants.BaseUrl}/api/user/is-subscribed?subscriberEmail={currentUserEmail}&authorEmail={userEmail}");
+        if (checkResponse.IsSuccessStatusCode)
+        {
+            IsSubscribed = await checkResponse.Content.ReadFromJsonAsync<bool>();
+        }
+    }
+
+    private async Task ToggleSubscription()
+    {
+        if (string.IsNullOrEmpty(currentUserEmail) || string.IsNullOrEmpty(userEmail)) return;
+
+        HttpResponseMessage response;
+
+        if (IsSubscribed)
+        {
+            response = await http.PostAsync($"{ApiConstants.BaseUrl}/api/user/unsubscribe?targetEmail={userEmail}&subscriberEmail={currentUserEmail}", null);
+        }
+        else
+        {
+            response = await http.PostAsync($"{ApiConstants.BaseUrl}/api/user/subscribe?targetEmail={userEmail}&subscriberEmail={currentUserEmail}", null);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            IsSubscribed = !IsSubscribed;
+            user = await http.GetFromJsonAsync<UserModel>($"{ApiConstants.BaseUrl}/api/user/get-user/{userEmail}");
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToArticle(string? articleId)
+    {
+        if (!string.IsNullOrEmpty(articleId))
+            NavigationManager.NavigateTo($"/article/{articleId}");
+    }
+}

@@ -1,0 +1,147 @@
+﻿@page "/home"
+@using Client.Models
+@using Client.Services
+@inject TokenServices tokenService
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Dashboard</PageTitle>
+
+<MudLayout>
+    <Navbar />
+    <MudMainContent>
+        <div class="article-container">
+            @if (tokenService.accesstoken != null && article != null)
+            {
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <MudTextField @bind-Value="searchQuery"
+                                  Placeholder="Search by title..."
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Style="max-width: 300px;" />
+                    
+                    <MudButton OnClick="SearchArticleAsync" Variant="Variant.Filled" Color="Color.Primary">
+                        Search
+                    </MudButton>
+                </div>
+
+                <MudGrid GutterSize="24px">
+                    @foreach (var art in article!)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudPaper Class="article-card" Elevation="6" Square="false" @onclick="() => getDetails(art?.Id)">
+                                <MudImage Src="@art?.ImageUrl" Alt="Article Image" Class="article-image" />
+                                <div class="article-content">
+                                    <MudText Typo="Typo.h6" Class="article-title">@art?.Heading</MudText>
+                                    <MudText Typo="Typo.body2" Class="article-body">@TruncateText(art?.ArticleBody, 20)</MudText>
+                                    <MudText Typo="Typo.caption" Class="article-date">@art?.CreatedAt.ToShortDateString()</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+            else if (tokenService.accesstoken == null)
+            {
+                <MudText Typo="Typo.h6" Color="Color.Error">Login to view articles</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Loading articles...</MudText>
+            }
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .article-container {
+        padding: 2rem;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .article-card {
+        cursor: pointer;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        box-shadow: 6px 6px 14px rgba(128, 128, 128, 0.4);
+    }
+
+    .article-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 8px 8px 20px rgba(128, 128, 128, 0.5);
+    }
+
+    .article-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .article-content {
+        padding: 1rem;
+    }
+
+    .article-title {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .article-body {
+        margin-bottom: 0.5rem;
+        color: gray;
+    }
+
+    .article-date {
+        color: #ccc;
+    }
+</style>
+
+@code {
+    public List<ArticleModel>? article;
+    private string searchQuery = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (tokenService.accesstoken != null)
+        {
+            await LoadAllArticles();
+        }
+    }
+
+    private async Task LoadAllArticles()
+    {
+        article = await Http.GetFromJsonAsync<List<ArticleModel>>($"{ApiConstants.BaseUrl}/api/article/get-all");
+        article!.Reverse(); // Optional: show newest first
+    }
+
+    private async Task SearchArticleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            await LoadAllArticles();
+        }
+        else
+        {
+            var encodedQuery = Uri.EscapeDataString(searchQuery);
+            article = await Http.GetFromJsonAsync<List<ArticleModel>>($"{ApiConstants.BaseUrl}/api/article?query={encodedQuery}");
+        }
+    }
+
+    private string TruncateText(string? text, int wordLimit)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        var words = text.Split(' ');
+        if (words.Length <= wordLimit) return text;
+        return string.Join(" ", words.Take(wordLimit)) + "...";
+    }
+
+    public void getDetails(string? id)
+    {
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            Navigation.NavigateTo($"/article/{id}");
+        }
+    }
+}

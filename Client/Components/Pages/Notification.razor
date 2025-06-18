@@ -1,0 +1,55 @@
+﻿@page "/notification"
+@using Client.Services
+@inject TokenServices token
+
+
+@inject NotificationService NotificationService
+@rendermode InteractiveServer
+
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+
+        <h3>🔔 Notifications</h3>
+
+        <ul>
+            @foreach (var message in messages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private List<string> messages = new();
+    private Action<string>? handler;
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? email = token.accesstoken;
+
+        handler = message =>
+        {
+            messages.Add(message);
+
+            InvokeAsync(StateHasChanged);
+        };
+
+
+
+        NotificationService.OnNotificationReceived += handler;
+
+        await NotificationService.InitializeAsync($"{ApiConstants.BaseUrl}/notificationHub", email!);
+
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (handler != null)
+            NotificationService.OnNotificationReceived -= handler;
+
+        await NotificationService.DisposeAsync();
+    }
+}
+

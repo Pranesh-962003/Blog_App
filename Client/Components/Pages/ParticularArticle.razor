@@ -1,0 +1,308 @@
+﻿@page "/article/{id}"
+@inject HttpClient Http
+@using Client.Models
+@using Client.Services
+@using MudBlazor
+@inject TokenServices token
+@rendermode InteractiveServer
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager Navigate
+
+<PageTitle>Article Details</PageTitle>
+
+
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+
+        @if (article != null)
+        {
+            <div class="full-article-page">
+                <div class="header-image-container">
+                    <img src="@article.ImageUrl" alt="Article Image" class="header-image" />
+                    <div class="image-overlay">
+                        <h1 class="article-heading">@article.Heading</h1>
+                        <p class="article-date">Published: @article.CreatedAt.ToShortDateString()</p>
+                    </div>
+                </div>
+                <MudButton OnClick="SummarizeArticle" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">Summarize Article</MudButton>
+                <p>@message</p>
+                @if (!string.IsNullOrEmpty(summary))
+                {
+                    <p><b>Summary:</b></p>
+                    <MudPaper Class="p-3" Style="white-space: pre-wrap; color: black; background-color: #f9f9f9; border: 1px solid #ccc; user-select: text;">
+                        @summary
+                    </MudPaper>
+                }
+                <div class="article-body-container">
+                    <p class="article-body-text">@article.ArticleBody</p>
+                </div>
+                <MudButton Color="@(IsLiked? Color.Error: Color.Default)" OnClick="ToggleLike" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Favorite">
+                    @(IsLiked ? "Liked" : "Like")
+                </MudButton>
+
+                <span class="ml-2">@LikeCount likes</span>
+
+                <MudButton Color="@(IsFavorited? Color.Primary: Color.Default)"
+                           OnClick="ToggleFavorite"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Star">
+                    @(IsFavorited ? "Favorited" : "Add to Favorites")
+                </MudButton>
+
+                <MudButton OnClick="Authoreprofile">View Author</MudButton>
+
+            </div>
+        }
+        else
+        {
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Class="mx-auto my-6" />
+        }
+
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .full-article-page {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f4f4;
+        color: #2c3e50;
+    }
+
+    .header-image-container {
+        position: relative;
+        width: 100%;
+        height: 450px;
+        overflow: hidden;
+    }
+
+    .header-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: brightness(70%);
+    }
+
+    .image-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .article-heading {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .article-date {
+        font-size: 1rem;
+        color: #e0e0e0;
+    }
+
+    .article-body-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        font-size: 1.2rem;
+        line-height: 1.8;
+        background-color: white;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .article-body-text {
+        white-space: pre-wrap;
+        color: #444;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string? id { get; set; }
+
+    private ArticleModel? article;
+    private bool IsLiked = false;
+    private int LikeCount = 0;
+    private bool IsFavorited = false;
+
+    private string CurrentUserEmail = "";
+    private string summary = "";
+    private string message = "";
+    private string articleContent = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        if (!string.IsNullOrEmpty(id))
+        {
+            if(token.accesstoken != null)
+            {
+                CurrentUserEmail = token.accesstoken;
+            }
+            Console.WriteLine("Current Token"+ CurrentUserEmail);
+            article = await Http.GetFromJsonAsync<ArticleModel>($"{ApiConstants.BaseUrl}/api/article/get-by-id/{id}");
+
+            if (article != null)
+            {
+                LikeCount = article.Likes?.Count ?? 0;
+
+                // Check if current user liked the article
+                var likedResponse = await Http.GetAsync($"{ApiConstants.BaseUrl}/api/article/{id}/has-liked?userEmail={CurrentUserEmail}");
+                if (likedResponse.IsSuccessStatusCode)
+                {
+                    IsLiked = await likedResponse.Content.ReadFromJsonAsync<bool>();
+                }
+
+                var favResponse = await Http.GetAsync($"{ApiConstants.BaseUrl}/api/user/is-favorited?userEmail={CurrentUserEmail}&articleId={article.Id}");
+                if (favResponse.IsSuccessStatusCode)
+                {
+                    IsFavorited = await favResponse.Content.ReadFromJsonAsync<bool>();
+                }
+            }
+        }
+    }
+
+
+    private async Task ToggleLike()
+    {
+        if (article == null || string.IsNullOrEmpty(id))
+            return;
+
+        HttpResponseMessage response;
+
+        if (IsLiked)
+        {
+            // User wants to unlike
+            response = await Http.PostAsJsonAsync($"{ApiConstants.BaseUrl}/api/article/{id}/unlike", CurrentUserEmail);
+        }
+        else
+        {
+            // User wants to like
+            response = await Http.PostAsJsonAsync($"{ApiConstants.BaseUrl}/api/article/{id}/like", CurrentUserEmail);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            if (IsLiked)
+            {
+                LikeCount--;
+                IsLiked = false;
+            }
+            else
+            {
+                LikeCount++;
+                IsLiked = true;
+            }
+        }
+        else
+        {
+            Console.WriteLine("Error liking/unliking article.");
+        }
+    }
+
+
+    private async Task ToggleFavorite()
+    {
+        if (article == null || string.IsNullOrEmpty(CurrentUserEmail))
+            return;
+
+        var url = IsFavorited
+            ? $"{ApiConstants.BaseUrl}/api/user/favorite/remove?userEmail={CurrentUserEmail}&articleId={article.Id}"
+            : $"{ApiConstants.BaseUrl}/api/user/favorite/add?userEmail={CurrentUserEmail}&articleId={article.Id}";
+
+        var response = await Http.PostAsync(url, null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            IsFavorited = !IsFavorited;
+        }
+        else
+        {
+            Console.WriteLine("Failed to update favorite status.");
+        }
+    }
+
+
+    private void Authoreprofile()
+    {
+        Navigate.NavigateTo($"/author/{article?.Id}");
+    }
+
+    private async Task SummarizeArticle()
+    {
+        message = "🔄 Summarizing article...";
+        summary = "";
+
+        var client = ClientFactory.CreateClient();
+
+        var body = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts = new[]
+                    {
+                        new
+                        {
+                            text = $"Summarize the following article:\n\n\"{article!.ArticleBody}\"\n\nSummary:"
+                        }
+                    }
+                }
+            }
+        };
+
+        var content = new StringContent(
+            System.Text.Json.JsonSerializer.Serialize(body),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+
+        try
+        {
+            var response = await client.PostAsync(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBbJLLdFf-_AiNz7GtUNppeLKLETy1BZw0",
+                content
+            );
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                message = $"❌ Error: {response.StatusCode} - {json}";
+                return;
+            }
+
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            summary = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString() ?? "";
+
+            message = "✅ Summary generated successfully!";
+        }
+        catch (Exception ex)
+        {
+            message = $"❌ Exception: {ex.Message}";
+        }
+    }
+
+
+}

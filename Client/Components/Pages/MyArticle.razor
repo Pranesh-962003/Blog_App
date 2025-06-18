@@ -1,0 +1,85 @@
+﻿@page "/my-article/"
+@using Client.Models
+@using Client.Services
+@inject HttpClient _http
+@inject TokenServices token
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+
+        <MudPaper Class="p-6 mx-auto mt-6" Elevation="4" Style="max-width: 900px;">
+            <MudText Typo="Typo.h5" Class="my-4 p-2">My Articles</MudText>
+
+            @if (articleList == null)
+            {
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Class="mx-auto my-6" />
+            }
+            else if (!articleList.Any())
+            {
+                <MudText>You haven't written any articles yet.</MudText>
+            }
+            else
+            {
+                <MudTable Items="@articleList" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Heading</MudTh>
+                        <MudTh>Created</MudTh>
+                        <MudTh align="right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Heading</MudTd>
+                        <MudTd>@context.CreatedAt.ToShortDateString()</MudTd>
+                        <MudTd align="right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditArticle(context.Id))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteArticle(context.Id))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private List<ArticleModel>? articleList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(token.accesstoken))
+            return;
+
+        articleList = await _http.GetFromJsonAsync<List<ArticleModel>>(
+            $"{ApiConstants.BaseUrl}/api/article/author/{token.accesstoken}");
+    }
+
+    private void EditArticle(string? articleId)
+    {
+        if (!string.IsNullOrEmpty(articleId))
+        {
+            Navigation.NavigateTo($"/edit-article/{articleId}");
+        }
+    }
+
+    private async Task DeleteArticle(string? articleId)
+    {
+        if (string.IsNullOrEmpty(articleId))
+            return;
+
+        // Replace with your actual delete route:
+        var response = await _http.DeleteAsync($"{ApiConstants.BaseUrl}/api/article/article-delete/{articleId}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            articleList = articleList?.Where(a => a.Id != articleId).ToList();
+            StateHasChanged();
+        }
+        else
+        {
+            // Optional: Show error message
+            Console.WriteLine("Failed to delete article.");
+        }
+    }
+}

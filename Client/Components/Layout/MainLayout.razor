@@ -1,0 +1,12 @@
+﻿@inherits LayoutComponentBase
+@using MudBlazor
+
+<MudThemeProvider /> <!-- SELF-CLOSING, NO CHILD CONTENT -->
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+<MudLayout>
+    <MudMainContent Style="padding: 0; margin: 0;">
+        @Body
+    </MudMainContent>
+</MudLayout>

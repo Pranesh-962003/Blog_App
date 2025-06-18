@@ -1,0 +1,199 @@
+﻿@page "/profile"
+@using Client.Services
+@using Client.Models
+@inject TokenServices token
+@inject UserService service
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<MudSnackbarProvider />
+
+<PageTitle>Profile</PageTitle>
+<MudLayout>
+    <Navbar/>
+    <MudMainContent>
+        
+<div class="profile-wrapper">
+    <MudPaper Class="profile-card" Elevation="10">
+        <MudText Typo="Typo.h4" Class="section-title">👤 My Profile</MudText>
+
+        @if (user != null)
+        {
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="label">Email</MudText>
+            <MudText Class="value-text">@user.Email</MudText>
+
+            <MudText Typo="Typo.subtitle2" Class="label mt-3">Name</MudText>
+
+            @if (editingName)
+            {
+                <MudTextField @bind-Value="newName" Label="Full Name" Variant="Variant.Outlined" />
+                <div class="button-group">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveName">Save</MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="() => editingName = false">Cancel</MudButton>
+                </div>
+            }
+            else
+            {
+                <MudText Class="value-text">@user.Name</MudText>
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" OnClick="EnableEditing">Edit</MudButton>
+            }
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="label">Subscribers (@user.Subscribers?.Count)</MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@ToggleSubscribers">Toggle View</MudButton>
+
+            @if (showSubscribers)
+            {
+                <MudList T="string" Class="sublist">
+                    @foreach (var sub in user.Subscribers)
+                    {
+                        <MudListItem>@sub</MudListItem>
+                    }
+                </MudList>
+            }
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="label">Subscribed To (@user.SubscribedTo?.Count)</MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@ToggleSubscribedTo">Toggle View</MudButton>
+
+            @if (showSubscribedTo)
+            {
+                <MudList T="string" Class="sublist">
+                    @foreach (var sub in user.SubscribedTo)
+                    {
+                        <MudListItem>
+                            <MudText>@sub</MudText>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => Unsubscribe(sub))">
+                                Unsubscribe
+                            </MudButton>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        }
+        else
+        {
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        }
+    </MudPaper>
+</div>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .profile-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-top: 5rem;
+        padding-bottom: 5rem;
+    }
+
+    .profile-card {
+        width: 100%;
+        max-width: 600px;
+        padding: 2.5rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+        color: #e0e0e0;
+    }
+
+    .section-title {
+        color: #ffffff;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .label {
+        color: #aaa;
+        font-weight: 500;
+    }
+
+    .value-text {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: gray;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .sublist {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+</style>
+
+@code {
+    private UserModel? user;
+    private string? email;
+    private bool showSubscribers = false;
+    private bool showSubscribedTo = false;
+    private bool editingName = false;
+    private string newName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(token.accesstoken))
+        {
+            email = token.accesstoken;
+            user = await service.GetUserByEmail(email);
+            if (user != null)
+                newName = user.Name;
+        }
+    }
+
+    private void ToggleSubscribers() => showSubscribers = !showSubscribers;
+    private void ToggleSubscribedTo() => showSubscribedTo = !showSubscribedTo;
+
+    private void EnableEditing()
+    {
+        editingName = true;
+        newName = user?.Name ?? string.Empty;
+    }
+
+    private async Task SaveName()
+    {
+        if (string.IsNullOrEmpty(email)) return;
+
+        var success = await service.UpdateUserName(email, newName);
+        if (success && user != null)
+        {
+            Snackbar.Add("Name updated successfully!", Severity.Success);
+            user.Name = newName;
+            editingName = false;
+        }
+        else
+        {
+            Snackbar.Add("Failed to update name.", Severity.Error);
+        }
+    }
+
+    private async Task Unsubscribe(string targetEmail)
+    {
+        if (string.IsNullOrEmpty(email)) return;
+
+        var result = await service.UnsubscribeUser(email, targetEmail);
+        if (result)
+        {
+            user?.SubscribedTo.Remove(targetEmail);
+            Snackbar.Add("Unsubscribed successfully.", Severity.Warning);
+            StateHasChanged();
+        }
+    }
+}

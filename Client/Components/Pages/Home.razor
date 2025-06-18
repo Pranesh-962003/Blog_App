@@ -1,0 +1,77 @@
+﻿@page "/"
+@inject HttpClient Http 
+@using Client.Models
+@using Client.Services
+@inject ISnackbar Snackbar
+@inject TokenServices _tokenService
+@using MudBlazor
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<MudSnackbarProvider/>
+<PageTitle>Login Page</PageTitle>
+
+
+
+<MudPaper Class="d-flex justify-center align-center" Style="height: 100vh;">
+	<MudCard Style="width: 400px;">
+		<MudCardHeader>
+			<MudText Typo="Typo.h5">Login</MudText>
+		</MudCardHeader>
+
+		<MudCardContent>
+			<MudTextField @bind-Value="email" Label="Email" Variant="Variant.Outlined" Required="true" />
+			<MudTextField @bind-Value="password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Required="true" />
+		</MudCardContent>
+
+		<MudCardActions Class="justify-end">
+			<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Login">Login</MudButton>
+		</MudCardActions>
+
+		<MudCardContent Class="mt-4 text-center">
+			<MudText Typo="Typo.body2">
+				Don't have an account?
+				<MudLink Href="/register">Register</MudLink>
+				
+			</MudText>
+		</MudCardContent>
+	</MudCard>
+</MudPaper>
+
+@code{
+	private string email = "";
+	private string password = "";
+
+	private async Task Login()
+	{
+		try
+		{
+			var formData = new Dictionary<string, string>
+			{
+				{ "email", email },
+				{ "password", password }
+			};
+			var content = new FormUrlEncodedContent(formData);
+
+			var responce = await Http.PostAsync($"{ApiConstants.BaseUrl}/api/auth/login", content);
+
+			if (responce.IsSuccessStatusCode)
+			{
+				var responcecontent = await responce.Content.ReadFromJsonAsync<LoginResponce>();
+				if (responcecontent != null )
+				{
+					_tokenService.setToken(responcecontent.token!);
+					Snackbar.Add("Login successfull");
+					await Task.Delay(1000);
+					Navigation.NavigateTo("/home");
+
+					
+				}
+			}
+		}
+		catch
+		{
+			
+		}
+	}
+}

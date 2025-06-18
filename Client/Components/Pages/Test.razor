@@ -1,0 +1,10 @@
+﻿@page "/test"
+@inject ISnackbar Snackbar
+@using MudBlazor
+@rendermode InteractiveServer
+@inject ISnackbar Snackbar
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="@(() => Snackbar.Add("Simple Snackbar"))">
+    Open Snackbar
+</MudButton>
+

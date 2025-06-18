@@ -1,0 +1,16 @@
+# Binaries
+bin/
+obj/
+
+# Secrets
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+
+# VS/IDE
+.vs/
+*.user
+*.suo
+
+# Publish
+publish/
