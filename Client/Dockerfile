@@ -21,4 +21,4 @@ COPY --from=build /app/out .
 EXPOSE 8080
 
 # Start the application (Update this line to match your .csproj name)
-ENTRYPOINT ["dotnet", "BlogApp.Client.dll"]
+ENTRYPOINT ["dotnet", "Client.dll"]
